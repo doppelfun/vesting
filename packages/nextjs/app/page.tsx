@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import deployedContracts from "~~/contracts/deployedContracts";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
-const CLAWD_TOKEN = "0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07";
-const VESTING_CONTRACT = "0x8d094DA613827Ec6B6C667D10b0719b494D76049";
+const VESTING_CONTRACT = deployedContracts[8453].ClawdVesting.address;
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
@@ -15,8 +16,16 @@ const Home: NextPage = () => {
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   const [clawdPrice, setClawdPrice] = useState<number | null>(null);
 
+  // Read the token address from the vesting contract itself — no hardcoded addresses
+  const { data: clawdTokenAddress } = useScaffoldReadContract({
+    contractName: "ClawdVesting",
+    functionName: "token",
+  });
+  const CLAWD_TOKEN = clawdTokenAddress as `0x${string}` | undefined;
+
   // Fetch $CLAWD price from DexScreener
   useEffect(() => {
+    if (!CLAWD_TOKEN) return;
     const fetchPrice = async () => {
       try {
         const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${CLAWD_TOKEN}`);
@@ -32,7 +41,7 @@ const Home: NextPage = () => {
     fetchPrice();
     const interval = setInterval(fetchPrice, 30000); // refresh every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [CLAWD_TOKEN]);
 
   // Update clock every second for the progress bar
   useEffect(() => {
@@ -46,13 +55,14 @@ const Home: NextPage = () => {
     abi: erc20Abi,
     functionName: "balanceOf",
     args: connectedAddress ? [connectedAddress] : undefined,
-    query: { enabled: !!connectedAddress, refetchInterval: 5000 },
+    query: { enabled: !!connectedAddress && !!CLAWD_TOKEN, refetchInterval: 5000 },
   });
 
   const { data: clawdDecimals } = useReadContract({
     address: CLAWD_TOKEN,
     abi: erc20Abi,
     functionName: "decimals",
+    query: { enabled: !!CLAWD_TOKEN },
   });
 
   // --- Read $CLAWD allowance for vesting contract ---
@@ -61,7 +71,7 @@ const Home: NextPage = () => {
     abi: erc20Abi,
     functionName: "allowance",
     args: connectedAddress ? [connectedAddress, VESTING_CONTRACT] : undefined,
-    query: { enabled: !!connectedAddress, refetchInterval: 5000 },
+    query: { enabled: !!connectedAddress && !!CLAWD_TOKEN, refetchInterval: 5000 },
   });
 
   // --- Read $CLAWD balance OF the vesting contract ---
@@ -70,7 +80,7 @@ const Home: NextPage = () => {
     abi: erc20Abi,
     functionName: "balanceOf",
     args: [VESTING_CONTRACT],
-    query: { refetchInterval: 5000 },
+    query: { enabled: !!CLAWD_TOKEN, refetchInterval: 5000 },
   });
 
   // --- Read vesting contract state ---
@@ -102,6 +112,12 @@ const Home: NextPage = () => {
     watch: true,
   });
 
+  const { data: totalAllocation } = useScaffoldReadContract({
+    contractName: "ClawdVesting",
+    functionName: "totalAllocation",
+    watch: true,
+  });
+
   const { data: beneficiary } = useScaffoldReadContract({
     contractName: "ClawdVesting",
     functionName: "beneficiary",
@@ -124,10 +140,10 @@ const Home: NextPage = () => {
     setApprovedSuccessfully(false);
   }, [depositAmount]);
 
-  // --- Write: Transfer (deposit) ---
-  const { writeContract: writeTransfer, data: transferTxHash } = useWriteContract();
+  // --- Write: Deposit ---
+  const { writeContractAsync: writeDeposit, data: depositTxHash } = useScaffoldWriteContract("ClawdVesting");
   const { isLoading: isDepositing, isSuccess: depositConfirmed } = useWaitForTransactionReceipt({
-    hash: transferTxHash,
+    hash: depositTxHash,
   });
 
   // Clear deposit UI after successful deposit
@@ -173,7 +189,7 @@ const Home: NextPage = () => {
   })();
 
   const handleApprove = () => {
-    if (!depositAmount) return;
+    if (!depositAmount || !CLAWD_TOKEN) return;
     const amt = parseUnits(depositAmount, decimals);
     writeApprove({
       address: CLAWD_TOKEN,
@@ -186,12 +202,7 @@ const Home: NextPage = () => {
   const handleDeposit = () => {
     if (!depositAmount) return;
     const amt = parseUnits(depositAmount, decimals);
-    writeTransfer({
-      address: CLAWD_TOKEN,
-      abi: erc20Abi,
-      functionName: "transfer",
-      args: [VESTING_CONTRACT, amt],
-    });
+    writeDeposit({ functionName: "deposit", args: [amt] });
   };
 
   const handleRelease = async () => {
@@ -224,57 +235,59 @@ const Home: NextPage = () => {
           </div>
         </div>
 
-        {/* Deposit Section */}
-        <div className="bg-base-200 rounded-3xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">📥 Deposit</h2>
-          <p className="opacity-70 text-sm">
-            Send $CLAWD to the vesting contract. Tokens will vest linearly and become claimable over time.
-          </p>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Amount of $CLAWD"
-              className="input input-bordered flex-1 text-lg"
-              value={depositAmount}
-              onChange={e => setDepositAmount(e.target.value)}
-            />
-            <button
-              className="btn btn-sm text-xs opacity-50"
-              onClick={() => {
-                if (clawdBalance !== undefined) setDepositAmount(formatUnits(clawdBalance, decimals));
-              }}
-            >
-              MAX
-            </button>
-          </div>
-          <div className="flex gap-3">
-            {needsApproval ? (
+        {/* Deposit Section — hidden once funded */}
+        {(!totalAllocation || totalAllocation === 0n) && (
+          <div className="bg-base-200 rounded-3xl p-6 space-y-4">
+            <h2 className="text-xl font-bold">📥 Deposit</h2>
+            <p className="opacity-70 text-sm">
+              Send $CLAWD to the vesting contract. Tokens will vest linearly and become claimable over time.
+            </p>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Amount of $CLAWD"
+                className="input input-bordered flex-1 text-lg"
+                value={depositAmount}
+                onChange={e => setDepositAmount(e.target.value)}
+              />
               <button
-                className="btn btn-primary flex-1"
-                onClick={handleApprove}
-                disabled={!depositAmount || isApproving || !!approveTxHash}
+                className="btn btn-sm text-xs opacity-50"
+                onClick={() => {
+                  if (clawdBalance !== undefined) setDepositAmount(formatUnits(clawdBalance, decimals));
+                }}
               >
-                {isApproving || approveTxHash
-                  ? "⏳ Approving..."
-                  : `Approve ${depositAmount || "0"} $CLAWD${clawdPrice && depositAmount ? ` ($${(Number(depositAmount) * clawdPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`}
+                MAX
               </button>
-            ) : (
-              <button
-                className="btn btn-success flex-1"
-                onClick={handleDeposit}
-                disabled={!depositAmount || isDepositing || (!!transferTxHash && !depositConfirmed)}
-              >
-                {isDepositing || (transferTxHash && !depositConfirmed) ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span> Depositing...
-                  </>
-                ) : (
-                  `Deposit ${depositAmount || "0"} $CLAWD${clawdPrice && depositAmount ? ` ($${(Number(depositAmount) * clawdPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`
-                )}
-              </button>
-            )}
+            </div>
+            <div className="flex gap-3">
+              {needsApproval ? (
+                <button
+                  className="btn btn-primary flex-1"
+                  onClick={handleApprove}
+                  disabled={!depositAmount || isApproving || !!approveTxHash}
+                >
+                  {isApproving || approveTxHash
+                    ? "⏳ Approving..."
+                    : `Approve ${depositAmount || "0"} $CLAWD${clawdPrice && depositAmount ? ` ($${(Number(depositAmount) * clawdPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-success flex-1"
+                  onClick={handleDeposit}
+                  disabled={!depositAmount || isDepositing || (!!depositTxHash && !depositConfirmed)}
+                >
+                  {isDepositing || (depositTxHash && !depositConfirmed) ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm"></span> Depositing...
+                    </>
+                  ) : (
+                    `Deposit ${depositAmount || "0"} $CLAWD${clawdPrice && depositAmount ? ` ($${(Number(depositAmount) * clawdPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`
+                  )}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Vesting Timeline */}
         <div className="bg-base-200 rounded-3xl p-6 space-y-4">
@@ -375,7 +388,11 @@ const Home: NextPage = () => {
               ? `Claim ${Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })} $CLAWD`
               : "Nothing to claim yet"}
           </button>
-          {beneficiary && <p className="text-xs opacity-50 text-center">Beneficiary: {beneficiary}</p>}
+          {beneficiary && (
+            <div className="text-xs opacity-50 text-center flex items-center justify-center gap-1">
+              Beneficiary: <Address address={beneficiary as `0x${string}`} size="xs" />
+            </div>
+          )}
         </div>
 
         {/* Contract Info */}

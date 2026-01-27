@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   8453: {
     ClawdVesting: {
-      address: "0x8d094DA613827Ec6B6C667D10b0719b494D76049",
+      address: "0xf2eb1cc702e2b7664382a793a790fc65d318003e",
       abi: [
         {
           type: "constructor",
@@ -42,6 +42,19 @@ const deployedContracts = {
             },
           ],
           stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "deposit",
+          inputs: [
+            {
+              name: "amount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
         },
         {
           type: "function",
@@ -117,6 +130,19 @@ const deployedContracts = {
         },
         {
           type: "function",
+          name: "totalAllocation",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
           name: "vested",
           inputs: [],
           outputs: [
@@ -127,6 +153,19 @@ const deployedContracts = {
             },
           ],
           stateMutability: "view",
+        },
+        {
+          type: "event",
+          name: "TokensDeposited",
+          inputs: [
+            {
+              name: "amount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
         },
         {
           type: "event",
@@ -154,7 +193,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 41348458,
+      deployedOnBlock: 41354626,
     },
   },
 } as const;

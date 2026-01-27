@@ -25,15 +25,14 @@ const scaffoldConfig = {
   // If you want to use a different RPC for a specific network, you can add it here.
   // The key is the chain ID, and the value is the HTTP RPC URL
   rpcOverrides: {
-    // Example:
-    // [chains.mainnet.id]: "https://mainnet.rpc.buidlguidl.com",
+    [chains.base.id]: "https://base-mainnet.g.alchemy.com/v2/8GVG8WjDs-sGFRr6Rm839",
   },
   // This is ours WalletConnect's default project ID.
   // You can get your own at https://cloud.walletconnect.com
   // It's recommended to store it in an env variable:
   // .env.local for local testing, and in the Vercel/system env config for live apps.
   walletConnectProjectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "3a8170812b534d0ff9d794f19a901d64",
-  onlyLocalBurnerWallet: false,
+  onlyLocalBurnerWallet: true,
 } as const satisfies ScaffoldConfig;
 
 export default scaffoldConfig;

@@ -13,8 +13,10 @@ contract ClawdVesting {
     address public immutable beneficiary;
     uint256 public immutable start;
     uint256 public immutable duration;
+    uint256 public totalAllocation;
     uint256 public released;
 
+    event TokensDeposited(uint256 amount);
     event TokensReleased(uint256 amount);
 
     constructor(address _token, address _beneficiary, uint256 _duration) {
@@ -28,9 +30,17 @@ contract ClawdVesting {
         duration = _duration;
     }
 
+    /// @notice Deposit tokens to fund the vesting. Can only be called once.
+    function deposit(uint256 amount) external {
+        require(totalAllocation == 0, "already funded");
+        totalAllocation = amount;
+        token.safeTransferFrom(msg.sender, address(this), amount);
+        emit TokensDeposited(amount);
+    }
+
     /// @notice Returns how many tokens have vested so far
     function vested() public view returns (uint256) {
-        uint256 totalAllocation = token.balanceOf(address(this)) + released;
+        if (totalAllocation == 0) return 0;
         if (block.timestamp >= start + duration) {
             return totalAllocation;
         }
