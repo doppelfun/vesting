@@ -4,6 +4,159 @@
  */
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  8453: {
+    ClawdVesting: {
+      address: "0x8d094DA613827Ec6B6C667D10b0719b494D76049",
+      abi: [
+        {
+          type: "constructor",
+          inputs: [
+            {
+              name: "_token",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "_beneficiary",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "_duration",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "beneficiary",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "duration",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "releasable",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "release",
+          inputs: [],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "released",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "start",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "token",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "contract IERC20",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "vested",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "event",
+          name: "TokensReleased",
+          inputs: [
+            {
+              name: "amount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "error",
+          name: "SafeERC20FailedOperation",
+          inputs: [
+            {
+              name: "token",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 41348458,
+    },
+  },
+} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;
