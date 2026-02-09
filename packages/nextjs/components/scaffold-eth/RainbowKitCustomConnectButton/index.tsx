@@ -43,8 +43,8 @@ export const RainbowKitCustomConnectButton = () => {
               }
 
               return (
-                <>
-                  <div className="flex flex-col items-center mr-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-end">
                     <Balance
                       address={account.address as Address}
                       style={{
@@ -53,7 +53,7 @@ export const RainbowKitCustomConnectButton = () => {
                         fontSize: "0.8em",
                       }}
                     />
-                    <span className="text-xs" style={{ color: networkColor }}>
+                    <span className="text-text-muted text-xs" style={{ color: networkColor }}>
                       {chain.name}
                     </span>
                   </div>
@@ -65,7 +65,7 @@ export const RainbowKitCustomConnectButton = () => {
                   />
                   <AddressQRCodeModal address={account.address as Address} modalId="qrcode-modal" />
                   <RevealBurnerPKModal />
-                </>
+                </div>
               );
             })()}
           </>

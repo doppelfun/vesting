@@ -33,9 +33,7 @@ export const HeaderMenuLinks = () => {
             <Link
               href={href}
               passHref
-              className={`${
-                isActive ? "bg-secondary shadow-md" : ""
-              } hover:bg-secondary hover:shadow-md focus:!bg-secondary active:!text-neutral py-1.5 px-3 text-sm rounded-full gap-2 grid grid-flow-col`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${isActive ? "bg-brand/15 text-brand" : "text-text-tertiary hover:bg-bg-tertiary hover:text-text-primary"}`}
             >
               {icon}
               <span>{label}</span>
@@ -48,7 +46,7 @@ export const HeaderMenuLinks = () => {
 };
 
 /**
- * Site header
+ * Site header — Doppel-style (match doppel-world HubNav)
  */
 export const Header = () => {
   const { targetNetwork } = useTargetNetwork();
@@ -60,36 +58,39 @@ export const Header = () => {
   });
 
   return (
-    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 shrink-0 justify-between z-20 shadow-md shadow-secondary px-0 sm:px-2">
-      <div className="navbar-start w-auto lg:w-1/2">
-        <details className="dropdown" ref={burgerMenuRef}>
-          <summary className="ml-1 btn btn-ghost lg:hidden hover:bg-transparent">
-            <Bars3Icon className="h-1/2" />
-          </summary>
-          <ul
-            className="menu menu-compact dropdown-content mt-3 p-2 shadow-sm bg-base-100 rounded-box w-52"
-            onClick={() => {
-              burgerMenuRef?.current?.removeAttribute("open");
-            }}
-          >
-            <HeaderMenuLinks />
-          </ul>
-        </details>
-        <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0">
-          <span className="text-2xl">🔒</span>
-          <div className="flex flex-col">
-            <span className="font-bold leading-tight">$DOPPEL Vesting</span>
-            <span className="text-xs opacity-50">Linear vesting over 30 days</span>
+    <header className="border-border/60 bg-bg-primary/80 sticky top-0 z-50 shrink-0 border-b backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3 lg:px-10">
+        {/* Left: mobile menu + logo + nav */}
+        <div className="flex min-w-0 flex-1 items-center gap-4 lg:gap-6">
+          <details className="dropdown shrink-0" ref={burgerMenuRef}>
+            <summary className="btn btn-ghost lg:hidden hover:bg-bg-tertiary" aria-label="Open menu">
+              <Bars3Icon className="h-6 w-6 text-text-primary" />
+            </summary>
+            <ul
+              className="menu dropdown-content mt-3 w-52 rounded-lg border border-border bg-bg-secondary p-2 shadow-lg"
+              onClick={() => {
+                burgerMenuRef?.current?.removeAttribute("open");
+              }}
+            >
+              <HeaderMenuLinks />
+            </ul>
+          </details>
+          <Link href="/" className="flex shrink-0 items-baseline gap-3" aria-label="$DOPPEL Vesting home">
+            <span className="text-brand text-xl font-bold tracking-tight transition-colors hover:text-brand-hover sm:text-2xl">
+              $DOPPEL Vesting
+            </span>
+            <span className="text-text-muted hidden text-xs sm:inline">Linear vesting on Base</span>
+          </Link>
+        </div>
+
+        {/* Right: optional Faucet, then account + balance (far right) */}
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          {isLocalNetwork && <FaucetButton />}
+          <div className="flex items-center gap-2">
+            <RainbowKitCustomConnectButton />
           </div>
-        </Link>
-        <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
-          <HeaderMenuLinks />
-        </ul>
+        </div>
       </div>
-      <div className="navbar-end grow mr-4">
-        <RainbowKitCustomConnectButton />
-        {isLocalNetwork && <FaucetButton />}
-      </div>
-    </div>
+    </header>
   );
 };

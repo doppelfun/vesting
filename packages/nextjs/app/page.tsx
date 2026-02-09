@@ -5,23 +5,40 @@ import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import deployedContracts from "~~/contracts/deployedContracts";
-import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
-
-const VESTING_CONTRACT = deployedContracts[8453].DoppelVesting.address;
+import {
+  useDeployedContractInfo,
+  useScaffoldReadContract,
+  useScaffoldWriteContract,
+  useTargetNetwork,
+} from "~~/hooks/scaffold-eth";
+import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
+  const { targetNetwork } = useTargetNetwork();
   const [depositAmount, setDepositAmount] = useState("");
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   const [doppelPrice, setDoppelPrice] = useState<number | null>(null);
 
-  // Read the token address from the vesting contract itself — no hardcoded addresses
+  // Vesting contract address for the current chain (from deployedContracts)
+  const { data: vestingContract } = useDeployedContractInfo({ contractName: "DoppelVesting" });
+  const vestingContractAddress = vestingContract?.address;
+
+  // Read token, beneficiary, start, duration, allocation, released from the contract
   const { data: doppelTokenAddress } = useScaffoldReadContract({
     contractName: "DoppelVesting",
     functionName: "token",
   });
   const DOPPEL_TOKEN = doppelTokenAddress as `0x${string}` | undefined;
+
+  // Token symbol from the ERC20 contract (for display)
+  const { data: tokenSymbol } = useReadContract({
+    address: DOPPEL_TOKEN,
+    abi: erc20Abi,
+    functionName: "symbol",
+    query: { enabled: !!DOPPEL_TOKEN },
+  });
+  const symbol = tokenSymbol != null ? String(tokenSymbol).replace(/^"+|"+$/g, "") : "TOKEN";
 
   // Fetch $DOPPEL price from DexScreener
   useEffect(() => {
@@ -65,22 +82,25 @@ const Home: NextPage = () => {
     query: { enabled: !!DOPPEL_TOKEN },
   });
 
-  // --- Read $DOPPEL allowance for vesting contract ---
+  // --- Read token allowance for vesting contract ---
   const { data: allowance } = useReadContract({
     address: DOPPEL_TOKEN,
     abi: erc20Abi,
     functionName: "allowance",
-    args: connectedAddress ? [connectedAddress, VESTING_CONTRACT] : undefined,
-    query: { enabled: !!connectedAddress && !!DOPPEL_TOKEN, refetchInterval: 5000 },
+    args: connectedAddress && vestingContractAddress ? [connectedAddress, vestingContractAddress] : undefined,
+    query: {
+      enabled: !!connectedAddress && !!DOPPEL_TOKEN && !!vestingContractAddress,
+      refetchInterval: 5000,
+    },
   });
 
-  // --- Read $DOPPEL balance OF the vesting contract ---
+  // --- Read token balance OF the vesting contract ---
   const { data: contractBalance } = useReadContract({
     address: DOPPEL_TOKEN,
     abi: erc20Abi,
     functionName: "balanceOf",
-    args: [VESTING_CONTRACT],
-    query: { enabled: !!DOPPEL_TOKEN, refetchInterval: 5000 },
+    args: vestingContractAddress ? [vestingContractAddress] : undefined,
+    query: { enabled: !!DOPPEL_TOKEN && !!vestingContractAddress, refetchInterval: 5000 },
   });
 
   // --- Read vesting contract state ---
@@ -189,13 +209,13 @@ const Home: NextPage = () => {
   })();
 
   const handleApprove = () => {
-    if (!depositAmount || !DOPPEL_TOKEN) return;
+    if (!depositAmount || !DOPPEL_TOKEN || !vestingContractAddress) return;
     const amt = parseUnits(depositAmount, decimals);
     writeApprove({
       address: DOPPEL_TOKEN,
       abi: erc20Abi,
       functionName: "approve",
-      args: [VESTING_CONTRACT, amt],
+      args: [vestingContractAddress, amt],
     });
   };
 
@@ -212,18 +232,18 @@ const Home: NextPage = () => {
   const hasReleasableTokens = releasable !== undefined && releasable > 0n;
 
   return (
-    <div className="flex flex-col items-center grow pt-10 px-4">
-      <div className="max-w-2xl w-full space-y-8">
+    <div className="flex grow flex-col items-center px-4 pt-10">
+      <div className="w-full max-w-2xl space-y-8">
         {/* Wallet Balance */}
-        <div className="bg-base-200 rounded-3xl p-6">
-          <div className="flex justify-between items-center">
-            <span className="text-lg opacity-70">Your $DOPPEL Balance</span>
+        <div className="bg-bg-secondary border-border rounded-2xl border p-6">
+          <div className="flex items-center justify-between">
+            <span className="text-text-secondary text-lg">Your {symbol} Balance</span>
             <div className="text-right">
-              <div className="text-2xl font-bold">
-                {Number(formattedBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })} $DOPPEL
+              <div className="text-text-primary text-2xl font-bold">
+                {Number(formattedBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })} {symbol}
               </div>
               {doppelPrice !== null && doppelBalance !== undefined && (
-                <div className="text-sm opacity-50">
+                <div className="text-text-muted text-sm">
                   ≈ $
                   {(Number(formattedBalance) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -237,21 +257,21 @@ const Home: NextPage = () => {
 
         {/* Deposit Section — hidden once funded */}
         {(!totalAllocation || totalAllocation === 0n) && (
-          <div className="bg-base-200 rounded-3xl p-6 space-y-4">
-            <h2 className="text-xl font-bold">📥 Deposit</h2>
-            <p className="opacity-70 text-sm">
-              Send $DOPPEL to the vesting contract. Tokens will vest linearly and become claimable over time.
+          <div className="bg-bg-secondary border-border rounded-2xl border p-6 space-y-4">
+            <h2 className="text-text-primary text-xl font-bold">Deposit</h2>
+            <p className="text-text-secondary text-sm">
+              Send {symbol} to the vesting contract. Tokens will vest linearly and become claimable over time.
             </p>
             <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Amount of $DOPPEL"
-                className="input input-bordered flex-1 text-lg"
+                placeholder={`Amount of ${symbol}`}
+                className="input input-bordered border-border bg-bg-tertiary text-text-primary placeholder:text-text-muted flex-1 rounded-lg text-lg focus:border-brand focus:outline-brand"
                 value={depositAmount}
                 onChange={e => setDepositAmount(e.target.value)}
               />
               <button
-                className="btn btn-sm text-xs opacity-50"
+                className="btn btn-ghost text-text-muted hover:text-text-primary btn-sm text-xs"
                 onClick={() => {
                   if (doppelBalance !== undefined) setDepositAmount(formatUnits(doppelBalance, decimals));
                 }}
@@ -262,26 +282,28 @@ const Home: NextPage = () => {
             <div className="flex gap-3">
               {needsApproval ? (
                 <button
-                  className="btn btn-primary flex-1"
+                  className="btn bg-brand hover:bg-brand-hover text-brand-dark flex-1 border-0 font-semibold disabled:cursor-not-allowed disabled:bg-bg-tertiary disabled:text-text-muted disabled:hover:bg-bg-tertiary"
                   onClick={handleApprove}
-                  disabled={!depositAmount || isApproving || !!approveTxHash}
+                  disabled={!depositAmount || isApproving || !!approveTxHash || !vestingContractAddress}
                 >
                   {isApproving || approveTxHash
-                    ? "⏳ Approving..."
-                    : `Approve ${depositAmount || "0"} $DOPPEL${doppelPrice && depositAmount ? ` ($${(Number(depositAmount) * doppelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`}
+                    ? "Approving..."
+                    : `Approve ${depositAmount || "0"} ${symbol}${doppelPrice && depositAmount ? ` ($${(Number(depositAmount) * doppelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`}
                 </button>
               ) : (
                 <button
-                  className="btn btn-success flex-1"
+                  className="btn bg-brand hover:bg-brand-hover text-brand-dark flex-1 border-0 font-semibold disabled:cursor-not-allowed disabled:bg-bg-tertiary disabled:text-text-muted disabled:hover:bg-bg-tertiary"
                   onClick={handleDeposit}
-                  disabled={!depositAmount || isDepositing || (!!depositTxHash && !depositConfirmed)}
+                  disabled={
+                    !depositAmount || isDepositing || (!!depositTxHash && !depositConfirmed) || !vestingContractAddress
+                  }
                 >
                   {isDepositing || (depositTxHash && !depositConfirmed) ? (
                     <>
                       <span className="loading loading-spinner loading-sm"></span> Depositing...
                     </>
                   ) : (
-                    `Deposit ${depositAmount || "0"} $DOPPEL${doppelPrice && depositAmount ? ` ($${(Number(depositAmount) * doppelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`
+                    `Deposit ${depositAmount || "0"} ${symbol}${doppelPrice && depositAmount ? ` ($${(Number(depositAmount) * doppelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`
                   )}
                 </button>
               )}
@@ -290,37 +312,35 @@ const Home: NextPage = () => {
         )}
 
         {/* Vesting Timeline */}
-        <div className="bg-base-200 rounded-3xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">⏳ Vesting Timeline</h2>
+        <div className="bg-bg-secondary border-border rounded-2xl border p-6 space-y-4">
+          <h2 className="text-text-primary text-xl font-bold">Vesting Timeline</h2>
 
-          {/* Progress Bar */}
-          <div className="w-full bg-base-300 rounded-full h-6 relative overflow-hidden">
-            <div
-              className="bg-primary h-full rounded-full transition-all duration-1000 ease-linear"
-              style={{ width: `${progress}%` }}
-            />
-            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">
-              {progress.toFixed(1)}% vested
-            </span>
+          {/* Progress Bar — label below so we never show white-on-green */}
+          <div className="space-y-1.5">
+            <div className="bg-bg-tertiary relative h-6 w-full overflow-hidden rounded-full">
+              <div
+                className="bg-brand h-full rounded-full transition-all duration-1000 ease-linear"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-text-secondary text-center text-sm font-medium">{progress.toFixed(1)}% vested</p>
           </div>
 
           {/* Time Info */}
-          <div className="flex justify-between text-sm opacity-70">
+          <div className="text-text-secondary flex justify-between text-sm">
             <span>Started: {startTime > 0 ? new Date(startTime * 1000).toLocaleString() : "—"}</span>
-            <span>
-              {timeRemaining > 0 ? `${minutesRemaining}m ${secondsRemaining}s remaining` : "✅ Fully vested!"}
-            </span>
+            <span>{timeRemaining > 0 ? `${minutesRemaining}m ${secondsRemaining}s remaining` : "Fully vested!"}</span>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="bg-base-300 rounded-xl p-4 text-center">
-              <div className="text-sm opacity-70">In Contract</div>
-              <div className="text-xl font-bold">
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="bg-bg-tertiary rounded-xl p-4 text-center">
+              <div className="text-text-secondary text-sm">In Contract</div>
+              <div className="text-text-primary text-xl font-bold">
                 {Number(formattedContractBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               {doppelPrice !== null && (
-                <div className="text-xs opacity-50">
+                <div className="text-text-muted text-xs">
                   ≈ $
                   {(Number(formattedContractBalance) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -329,13 +349,13 @@ const Home: NextPage = () => {
                 </div>
               )}
             </div>
-            <div className="bg-base-300 rounded-xl p-4 text-center">
-              <div className="text-sm opacity-70">Total Vested</div>
-              <div className="text-xl font-bold">
+            <div className="bg-bg-tertiary rounded-xl p-4 text-center">
+              <div className="text-text-secondary text-sm">Total Vested</div>
+              <div className="text-text-primary text-xl font-bold">
                 {Number(formattedVested).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               {doppelPrice !== null && (
-                <div className="text-xs opacity-50">
+                <div className="text-text-muted text-xs">
                   ≈ $
                   {(Number(formattedVested) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -344,13 +364,13 @@ const Home: NextPage = () => {
                 </div>
               )}
             </div>
-            <div className="bg-base-300 rounded-xl p-4 text-center">
-              <div className="text-sm opacity-70">Already Released</div>
-              <div className="text-xl font-bold">
+            <div className="bg-bg-tertiary rounded-xl p-4 text-center">
+              <div className="text-text-secondary text-sm">Already Released</div>
+              <div className="text-text-primary text-xl font-bold">
                 {Number(formattedReleased).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               {doppelPrice !== null && (
-                <div className="text-xs opacity-50">
+                <div className="text-text-muted text-xs">
                   ≈ $
                   {(Number(formattedReleased) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -359,13 +379,13 @@ const Home: NextPage = () => {
                 </div>
               )}
             </div>
-            <div className="bg-base-300 rounded-xl p-4 text-center text-success">
-              <div className="text-sm opacity-70">Ready to Claim</div>
+            <div className="bg-brand/15 border-brand/40 text-brand rounded-xl border p-4 text-center">
+              <div className="text-sm font-medium">Ready to Claim</div>
               <div className="text-xl font-bold">
                 {Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
               {doppelPrice !== null && (
-                <div className="text-xs opacity-50">
+                <div className="text-brand/80 text-xs">
                   ≈ $
                   {(Number(formattedReleasable) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -378,34 +398,40 @@ const Home: NextPage = () => {
         </div>
 
         {/* Withdraw Section */}
-        <div className="bg-base-200 rounded-3xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">💰 Withdraw</h2>
-          <p className="opacity-70 text-sm">
+        <div className="bg-bg-secondary border-border rounded-2xl border p-6 space-y-4">
+          <h2 className="text-text-primary text-xl font-bold">Withdraw</h2>
+          <p className="text-text-secondary text-sm">
             Claim vested tokens. Anyone can call this — tokens always go to the beneficiary.
           </p>
-          <button className="btn btn-primary btn-lg w-full" onClick={handleRelease} disabled={!hasReleasableTokens}>
+          <button
+            className="btn bg-brand hover:bg-brand-hover text-brand-dark w-full border-0 py-3 font-semibold disabled:cursor-not-allowed disabled:bg-bg-tertiary disabled:text-text-muted disabled:hover:bg-bg-tertiary"
+            onClick={handleRelease}
+            disabled={!hasReleasableTokens || !vestingContractAddress}
+          >
             {hasReleasableTokens
-              ? `Claim ${Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })} $DOPPEL`
+              ? `Claim ${Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${symbol}`
               : "Nothing to claim yet"}
           </button>
           {beneficiary && (
-            <div className="text-xs opacity-50 text-center flex items-center justify-center gap-1">
+            <div className="text-text-muted flex items-center justify-center gap-1 text-center text-xs">
               Beneficiary: <Address address={beneficiary as `0x${string}`} size="xs" />
             </div>
           )}
         </div>
 
-        {/* Contract Info */}
-        <div className="text-center opacity-50 text-sm pb-8">
-          <a
-            href={`https://basescan.org/address/${VESTING_CONTRACT}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="link"
-          >
-            View contract on BaseScan ↗
-          </a>
-        </div>
+        {/* Contract Info — explorer link for current network */}
+        {vestingContractAddress && (
+          <div className="text-text-muted pb-8 text-center text-sm">
+            <a
+              href={getBlockExplorerAddressLink(targetNetwork, vestingContractAddress)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-brand transition-colors"
+            >
+              View contract on {targetNetwork.blockExplorers?.default?.name ?? "Explorer"} ↗
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

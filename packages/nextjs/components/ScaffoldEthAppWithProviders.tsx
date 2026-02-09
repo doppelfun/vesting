@@ -15,9 +15,21 @@ import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
-      <div className={`flex flex-col min-h-screen `}>
+      <style>{`body { overflow: auto !important; }`}</style>
+      <div className="bg-bg-primary text-text-primary relative flex min-h-screen flex-col overflow-x-hidden">
+        {/* Coordinate grid background (match doppel-world) */}
+        <div
+          className="pointer-events-none fixed inset-0 opacity-[0.035]"
+          style={{
+            backgroundImage: [
+              "linear-gradient(to right, #c5fd90 1px, transparent 1px)",
+              "linear-gradient(to bottom, #c5fd90 1px, transparent 1px)",
+            ].join(", "),
+            backgroundSize: "80px 80px",
+          }}
+        />
         <Header />
-        <main className="relative flex flex-col flex-1">{children}</main>
+        <main className="relative z-10 flex flex-1 flex-col">{children}</main>
         <Footer />
       </div>
       <Toaster />
@@ -38,7 +50,7 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider avatar={BlockieAvatar} theme={darkTheme()}>
-          <ProgressBar height="3px" color="#2299dd" />
+          <ProgressBar height="3px" color="#c5fd90" />
           <ScaffoldEthApp>{children}</ScaffoldEthApp>
         </RainbowKitProvider>
       </QueryClientProvider>
