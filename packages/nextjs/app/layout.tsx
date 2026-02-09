@@ -5,8 +5,8 @@ import "~~/styles/globals.css";
 import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
 export const metadata = getMetadata({
-  title: "$CLAWD Vesting",
-  description: "Linear token vesting for $CLAWD on Base",
+  title: "$DOPPEL Vesting",
+  description: "Linear token vesting for $DOPPEL on Base",
 });
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {

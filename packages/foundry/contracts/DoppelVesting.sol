@@ -4,9 +4,9 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @title ClawdVesting
-/// @notice Holds $CLAWD tokens and releases them linearly over 30 days
-contract ClawdVesting {
+/// @title DoppelVesting
+/// @notice Holds $DOPPEL tokens and releases them linearly over 60 days
+contract DoppelVesting {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable token;

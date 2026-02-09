@@ -8,40 +8,40 @@ import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteCont
 import deployedContracts from "~~/contracts/deployedContracts";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
-const VESTING_CONTRACT = deployedContracts[8453].ClawdVesting.address;
+const VESTING_CONTRACT = deployedContracts[8453].DoppelVesting.address;
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
   const [depositAmount, setDepositAmount] = useState("");
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
-  const [clawdPrice, setClawdPrice] = useState<number | null>(null);
+  const [doppelPrice, setDoppelPrice] = useState<number | null>(null);
 
   // Read the token address from the vesting contract itself — no hardcoded addresses
-  const { data: clawdTokenAddress } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+  const { data: doppelTokenAddress } = useScaffoldReadContract({
+    contractName: "DoppelVesting",
     functionName: "token",
   });
-  const CLAWD_TOKEN = clawdTokenAddress as `0x${string}` | undefined;
+  const DOPPEL_TOKEN = doppelTokenAddress as `0x${string}` | undefined;
 
-  // Fetch $CLAWD price from DexScreener
+  // Fetch $DOPPEL price from DexScreener
   useEffect(() => {
-    if (!CLAWD_TOKEN) return;
+    if (!DOPPEL_TOKEN) return;
     const fetchPrice = async () => {
       try {
-        const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${CLAWD_TOKEN}`);
+        const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${DOPPEL_TOKEN}`);
         const data = await res.json();
         const pairs = data?.pairs;
         if (pairs && pairs.length > 0) {
-          setClawdPrice(parseFloat(pairs[0].priceUsd));
+          setDoppelPrice(parseFloat(pairs[0].priceUsd));
         }
       } catch (e) {
-        console.error("Failed to fetch CLAWD price:", e);
+        console.error("Failed to fetch DOPPEL price:", e);
       }
     };
     fetchPrice();
     const interval = setInterval(fetchPrice, 30000); // refresh every 30s
     return () => clearInterval(interval);
-  }, [CLAWD_TOKEN]);
+  }, [DOPPEL_TOKEN]);
 
   // Update clock every second for the progress bar
   useEffect(() => {
@@ -49,77 +49,77 @@ const Home: NextPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // --- Read $CLAWD balance of connected wallet ---
-  const { data: clawdBalance } = useReadContract({
-    address: CLAWD_TOKEN,
+  // --- Read $DOPPEL balance of connected wallet ---
+  const { data: doppelBalance } = useReadContract({
+    address: DOPPEL_TOKEN,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: connectedAddress ? [connectedAddress] : undefined,
-    query: { enabled: !!connectedAddress && !!CLAWD_TOKEN, refetchInterval: 5000 },
+    query: { enabled: !!connectedAddress && !!DOPPEL_TOKEN, refetchInterval: 5000 },
   });
 
-  const { data: clawdDecimals } = useReadContract({
-    address: CLAWD_TOKEN,
+  const { data: doppelDecimals } = useReadContract({
+    address: DOPPEL_TOKEN,
     abi: erc20Abi,
     functionName: "decimals",
-    query: { enabled: !!CLAWD_TOKEN },
+    query: { enabled: !!DOPPEL_TOKEN },
   });
 
-  // --- Read $CLAWD allowance for vesting contract ---
+  // --- Read $DOPPEL allowance for vesting contract ---
   const { data: allowance } = useReadContract({
-    address: CLAWD_TOKEN,
+    address: DOPPEL_TOKEN,
     abi: erc20Abi,
     functionName: "allowance",
     args: connectedAddress ? [connectedAddress, VESTING_CONTRACT] : undefined,
-    query: { enabled: !!connectedAddress && !!CLAWD_TOKEN, refetchInterval: 5000 },
+    query: { enabled: !!connectedAddress && !!DOPPEL_TOKEN, refetchInterval: 5000 },
   });
 
-  // --- Read $CLAWD balance OF the vesting contract ---
+  // --- Read $DOPPEL balance OF the vesting contract ---
   const { data: contractBalance } = useReadContract({
-    address: CLAWD_TOKEN,
+    address: DOPPEL_TOKEN,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: [VESTING_CONTRACT],
-    query: { enabled: !!CLAWD_TOKEN, refetchInterval: 5000 },
+    query: { enabled: !!DOPPEL_TOKEN, refetchInterval: 5000 },
   });
 
   // --- Read vesting contract state ---
   const { data: vestingStart } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "start",
   });
 
   const { data: vestingDuration } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "duration",
   });
 
   const { data: released } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "released",
     watch: true,
   });
 
   const { data: releasable } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "releasable",
     watch: true,
   });
 
   const { data: vested } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "vested",
     watch: true,
   });
 
   const { data: totalAllocation } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "totalAllocation",
     watch: true,
   });
 
   const { data: beneficiary } = useScaffoldReadContract({
-    contractName: "ClawdVesting",
+    contractName: "DoppelVesting",
     functionName: "beneficiary",
   });
 
@@ -141,7 +141,7 @@ const Home: NextPage = () => {
   }, [depositAmount]);
 
   // --- Write: Deposit ---
-  const { writeContractAsync: writeDeposit, data: depositTxHash } = useScaffoldWriteContract("ClawdVesting");
+  const { writeContractAsync: writeDeposit, data: depositTxHash } = useScaffoldWriteContract("DoppelVesting");
   const { isLoading: isDepositing, isSuccess: depositConfirmed } = useWaitForTransactionReceipt({
     hash: depositTxHash,
   });
@@ -155,11 +155,11 @@ const Home: NextPage = () => {
   }, [depositConfirmed]);
 
   // --- Write: Release ---
-  const { writeContractAsync: writeRelease } = useScaffoldWriteContract("ClawdVesting");
+  const { writeContractAsync: writeRelease } = useScaffoldWriteContract("DoppelVesting");
 
   // Derived values
-  const decimals = clawdDecimals ?? 18;
-  const formattedBalance = clawdBalance !== undefined ? formatUnits(clawdBalance, decimals) : "0";
+  const decimals = doppelDecimals ?? 18;
+  const formattedBalance = doppelBalance !== undefined ? formatUnits(doppelBalance, decimals) : "0";
   const formattedContractBalance = contractBalance !== undefined ? formatUnits(contractBalance, decimals) : "0";
   const formattedReleased = released !== undefined ? formatUnits(released, decimals) : "0";
   const formattedReleasable = releasable !== undefined ? formatUnits(releasable, decimals) : "0";
@@ -189,10 +189,10 @@ const Home: NextPage = () => {
   })();
 
   const handleApprove = () => {
-    if (!depositAmount || !CLAWD_TOKEN) return;
+    if (!depositAmount || !DOPPEL_TOKEN) return;
     const amt = parseUnits(depositAmount, decimals);
     writeApprove({
-      address: CLAWD_TOKEN,
+      address: DOPPEL_TOKEN,
       abi: erc20Abi,
       functionName: "approve",
       args: [VESTING_CONTRACT, amt],
@@ -217,15 +217,15 @@ const Home: NextPage = () => {
         {/* Wallet Balance */}
         <div className="bg-base-200 rounded-3xl p-6">
           <div className="flex justify-between items-center">
-            <span className="text-lg opacity-70">Your $CLAWD Balance</span>
+            <span className="text-lg opacity-70">Your $DOPPEL Balance</span>
             <div className="text-right">
               <div className="text-2xl font-bold">
-                {Number(formattedBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })} $CLAWD
+                {Number(formattedBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })} $DOPPEL
               </div>
-              {clawdPrice !== null && clawdBalance !== undefined && (
+              {doppelPrice !== null && doppelBalance !== undefined && (
                 <div className="text-sm opacity-50">
                   ≈ $
-                  {(Number(formattedBalance) * clawdPrice).toLocaleString(undefined, {
+                  {(Number(formattedBalance) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -240,12 +240,12 @@ const Home: NextPage = () => {
           <div className="bg-base-200 rounded-3xl p-6 space-y-4">
             <h2 className="text-xl font-bold">📥 Deposit</h2>
             <p className="opacity-70 text-sm">
-              Send $CLAWD to the vesting contract. Tokens will vest linearly and become claimable over time.
+              Send $DOPPEL to the vesting contract. Tokens will vest linearly and become claimable over time.
             </p>
             <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Amount of $CLAWD"
+                placeholder="Amount of $DOPPEL"
                 className="input input-bordered flex-1 text-lg"
                 value={depositAmount}
                 onChange={e => setDepositAmount(e.target.value)}
@@ -253,7 +253,7 @@ const Home: NextPage = () => {
               <button
                 className="btn btn-sm text-xs opacity-50"
                 onClick={() => {
-                  if (clawdBalance !== undefined) setDepositAmount(formatUnits(clawdBalance, decimals));
+                  if (doppelBalance !== undefined) setDepositAmount(formatUnits(doppelBalance, decimals));
                 }}
               >
                 MAX
@@ -268,7 +268,7 @@ const Home: NextPage = () => {
                 >
                   {isApproving || approveTxHash
                     ? "⏳ Approving..."
-                    : `Approve ${depositAmount || "0"} $CLAWD${clawdPrice && depositAmount ? ` ($${(Number(depositAmount) * clawdPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`}
+                    : `Approve ${depositAmount || "0"} $DOPPEL${doppelPrice && depositAmount ? ` ($${(Number(depositAmount) * doppelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`}
                 </button>
               ) : (
                 <button
@@ -281,7 +281,7 @@ const Home: NextPage = () => {
                       <span className="loading loading-spinner loading-sm"></span> Depositing...
                     </>
                   ) : (
-                    `Deposit ${depositAmount || "0"} $CLAWD${clawdPrice && depositAmount ? ` ($${(Number(depositAmount) * clawdPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`
+                    `Deposit ${depositAmount || "0"} $DOPPEL${doppelPrice && depositAmount ? ` ($${(Number(depositAmount) * doppelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })})` : ""}`
                   )}
                 </button>
               )}
@@ -319,10 +319,10 @@ const Home: NextPage = () => {
               <div className="text-xl font-bold">
                 {Number(formattedContractBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
-              {clawdPrice !== null && (
+              {doppelPrice !== null && (
                 <div className="text-xs opacity-50">
                   ≈ $
-                  {(Number(formattedContractBalance) * clawdPrice).toLocaleString(undefined, {
+                  {(Number(formattedContractBalance) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -334,10 +334,10 @@ const Home: NextPage = () => {
               <div className="text-xl font-bold">
                 {Number(formattedVested).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
-              {clawdPrice !== null && (
+              {doppelPrice !== null && (
                 <div className="text-xs opacity-50">
                   ≈ $
-                  {(Number(formattedVested) * clawdPrice).toLocaleString(undefined, {
+                  {(Number(formattedVested) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -349,10 +349,10 @@ const Home: NextPage = () => {
               <div className="text-xl font-bold">
                 {Number(formattedReleased).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
-              {clawdPrice !== null && (
+              {doppelPrice !== null && (
                 <div className="text-xs opacity-50">
                   ≈ $
-                  {(Number(formattedReleased) * clawdPrice).toLocaleString(undefined, {
+                  {(Number(formattedReleased) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -364,10 +364,10 @@ const Home: NextPage = () => {
               <div className="text-xl font-bold">
                 {Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
-              {clawdPrice !== null && (
+              {doppelPrice !== null && (
                 <div className="text-xs opacity-50">
                   ≈ $
-                  {(Number(formattedReleasable) * clawdPrice).toLocaleString(undefined, {
+                  {(Number(formattedReleasable) * doppelPrice).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -385,7 +385,7 @@ const Home: NextPage = () => {
           </p>
           <button className="btn btn-primary btn-lg w-full" onClick={handleRelease} disabled={!hasReleasableTokens}>
             {hasReleasableTokens
-              ? `Claim ${Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })} $CLAWD`
+              ? `Claim ${Number(formattedReleasable).toLocaleString(undefined, { maximumFractionDigits: 2 })} $DOPPEL`
               : "Nothing to claim yet"}
           </button>
           {beneficiary && (

@@ -6,7 +6,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 const deployedContracts = {
   8453: {
-    ClawdVesting: {
+    DoppelVesting: {
       address: "0xf2eb1cc702e2b7664382a793a790fc65d318003e",
       abi: [
         {

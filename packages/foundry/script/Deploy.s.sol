@@ -2,11 +2,11 @@
 pragma solidity ^0.8.19;
 
 import "./DeployHelpers.s.sol";
-import { DeployClawdVesting } from "./DeployClawdVesting.s.sol";
+import { DeployDoppelVesting } from "./DeployDoppelVesting.s.sol";
 
 contract DeployScript is ScaffoldETHDeploy {
   function run() external {
-    DeployClawdVesting deployClawdVesting = new DeployClawdVesting();
-    deployClawdVesting.run();
+    DeployDoppelVesting deployDoppelVesting = new DeployDoppelVesting();
+    deployDoppelVesting.run();
   }
 }

@@ -44,7 +44,12 @@ export const Footer = () => {
         <ul className="menu menu-horizontal w-full">
           <div className="flex justify-center items-center gap-2 text-sm w-full">
             <div className="text-center">
-              <a href="https://github.com/clawdbotatg/clawd-vesting" target="_blank" rel="noreferrer" className="link">
+              <a
+                href="https://github.com/doppelbotatg/doppel-vesting"
+                target="_blank"
+                rel="noreferrer"
+                className="link"
+              >
                 GitHub
               </a>
             </div>

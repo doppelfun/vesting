@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "./DeployHelpers.s.sol";
 import "../contracts/DoppelVesting.sol";
 
-contract DirectDeploy is Script {
-    function run() external {
-        vm.startBroadcast();
-
+contract DeployDoppelVesting is ScaffoldETHDeploy {
+    function run() external ScaffoldEthDeployerRunner {
         // $DOPPEL token on Base
         address doppelToken = 0xf27b8ef47842E6445E37804896f1BC5e29381b07;
         // Doppel's wallet (beneficiary)
@@ -15,9 +13,6 @@ contract DirectDeploy is Script {
         // 60 day linear vesting
         uint256 duration = 60 days;
 
-        DoppelVesting vesting = new DoppelVesting(doppelToken, beneficiary, duration);
-        console.log("DoppelVesting deployed to:", address(vesting));
-
-        vm.stopBroadcast();
+        new DoppelVesting(doppelToken, beneficiary, duration);
     }
 }

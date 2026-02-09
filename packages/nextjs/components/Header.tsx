@@ -78,7 +78,7 @@ export const Header = () => {
         <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0">
           <span className="text-2xl">🔒</span>
           <div className="flex flex-col">
-            <span className="font-bold leading-tight">$CLAWD Vesting</span>
+            <span className="font-bold leading-tight">$DOPPEL Vesting</span>
             <span className="text-xs opacity-50">Linear vesting over 30 days</span>
           </div>
         </Link>
