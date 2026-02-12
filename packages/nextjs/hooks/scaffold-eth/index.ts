@@ -10,5 +10,6 @@ export * from "./useScaffoldReadContract";
 export * from "./useScaffoldWatchContractEvent";
 export * from "./useScaffoldWriteContract";
 export * from "./useTargetNetwork";
+export * from "./useTokenBurns";
 export * from "./useTransactor";
 export * from "./useSelectedNetwork";

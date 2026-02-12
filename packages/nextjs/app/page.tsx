@@ -10,8 +10,9 @@ import {
   useScaffoldReadContract,
   useScaffoldWriteContract,
   useTargetNetwork,
+  useTokenBurns,
 } from "~~/hooks/scaffold-eth";
-import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
+import { getBlockExplorerAddressLink, getBlockExplorerTxLink } from "~~/utils/scaffold-eth";
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
@@ -82,6 +83,13 @@ const Home: NextPage = () => {
     query: { enabled: !!DOPPEL_TOKEN },
   });
 
+  const { data: tokenTotalSupply } = useReadContract({
+    address: DOPPEL_TOKEN,
+    abi: erc20Abi,
+    functionName: "totalSupply",
+    query: { enabled: !!DOPPEL_TOKEN },
+  });
+
   // --- Read token allowance for vesting contract ---
   const { data: allowance } = useReadContract({
     address: DOPPEL_TOKEN,
@@ -142,6 +150,14 @@ const Home: NextPage = () => {
     contractName: "DoppelVesting",
     functionName: "beneficiary",
   });
+
+  // Token burns (Transfer to 0x...dead) — from vesting deploy block so the scan stays bounded
+  const vestingContractWithBlock = vestingContract as { deployedOnBlock?: number } | undefined;
+  const {
+    burns,
+    isLoading: burnsLoading,
+    error: burnsError,
+  } = useTokenBurns(DOPPEL_TOKEN, vestingContractWithBlock?.deployedOnBlock);
 
   // --- Write: Approve ---
   const { writeContract: writeApprove, data: approveTxHash } = useWriteContract();
@@ -396,6 +412,91 @@ const Home: NextPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Token Burns */}
+        {DOPPEL_TOKEN && (
+          <div className="bg-bg-secondary border-border rounded-2xl border p-6 space-y-4">
+            <h2 className="text-text-primary text-xl font-bold">Token Burns</h2>
+            <p className="text-text-secondary text-sm">
+              All {symbol} burns (transfers to 0x…dead) since the vesting contract was deployed.
+            </p>
+            {!burnsLoading && !burnsError && (
+              <div className="bg-bg-tertiary rounded-xl px-4 py-3">
+                <span className="text-text-secondary text-sm">Total burned</span>
+                <div className="text-text-primary text-xl font-bold flex items-baseline gap-2 flex-wrap">
+                  <span>
+                    {Number(
+                      formatUnits(
+                        burns.reduce((sum, b) => sum + b.value, 0n),
+                        decimals,
+                      ),
+                    ).toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
+                    {symbol}
+                  </span>
+                  {tokenTotalSupply !== undefined && tokenTotalSupply > 0n && (
+                    <span className="text-text-muted text-base font-normal">
+                      (
+                      {((Number(burns.reduce((sum, b) => sum + b.value, 0n)) / Number(tokenTotalSupply)) * 100).toFixed(
+                        4,
+                      )}
+                      % of supply)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {burnsError && <p className="text-error text-sm">Failed to load burns: {burnsError.message}</p>}
+            {burnsLoading ? (
+              <div className="flex justify-center py-8">
+                <span className="loading loading-spinner loading-md text-brand" />
+              </div>
+            ) : burns.length === 0 ? (
+              <p className="text-text-muted text-sm py-4 text-center">No burns yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="table table-zebra w-full">
+                  <thead>
+                    <tr className="border-border text-text-secondary text-sm">
+                      <th>From</th>
+                      <th className="text-right">Amount</th>
+                      <th className="text-right">% of supply</th>
+                      <th className="text-right">Block</th>
+                      <th className="text-right">Tx</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {burns.map((b, i) => (
+                      <tr key={`${b.transactionHash}-${b.logIndex}-${i}`} className="border-border">
+                        <td>
+                          <Address address={b.from} size="sm" />
+                        </td>
+                        <td className="text-right font-mono text-text-primary">
+                          {Math.round(Number(formatUnits(b.value, decimals))).toLocaleString()}
+                        </td>
+                        <td className="text-right text-text-muted text-sm">
+                          {tokenTotalSupply !== undefined && tokenTotalSupply > 0n
+                            ? `${((Number(b.value) / Number(tokenTotalSupply)) * 100).toFixed(4)}%`
+                            : "—"}
+                        </td>
+                        <td className="text-right text-text-muted text-sm">{Number(b.blockNumber).toLocaleString()}</td>
+                        <td className="text-right">
+                          <a
+                            href={getBlockExplorerTxLink(targetNetwork.id, b.transactionHash)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand hover:underline text-sm"
+                          >
+                            View ↗
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Withdraw Section */}
         <div className="bg-bg-secondary border-border rounded-2xl border p-6 space-y-4">
